@@ -1,0 +1,103 @@
+---
+title: "Building a machine learning model to predict the manner in which people did the exercise"
+author: "Thet K. Oo"
+date: "Friday, January 23, 2015"
+output: html_document
+---
+
+###Synopsis###
+
+This report is prepared as part of Coursera Practical Machine Learning project. The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har]. 
+
+First, the weight lifting dataset from Groupware@Les is separated into training and test sets (70% and 30% respectively). Using the caret package, build the model on the training set and evaluate on the test set.
+
+The model is then used to predict 20 different test cases.
+
+###Data Processing###
+
+The downloaded data files "pml_training.csv" and "pml_testing.csv" files are read into varialbes called pml and pml_test.
+
+
+```{r}
+pml = read.csv("pml-training.csv")
+pml_test = read.csv("pml-testing.csv")
+dim(pml)
+dim(pml_test)
+```
+
+###Pre-processing###
+
+A brief look at the datasets show that there are 160 columns and quite a lot of columns are with NA values. 
+To remove columns with NAs:
+
+```{r}
+nacols = colSums(is.na(pml_test))==0
+pml = pml[,nacols]
+pml_test = pml_test[,nacols]
+dim(pml)
+```
+
+Then, load the caret package and remove zero and near zear variance predictors using nearZeroVar function.
+
+```{r}
+library(caret)
+library(randomForest)
+nzv = nearZeroVar(pml)
+fpml = pml[,-nzv]
+pml_test = pml_test[,-nzv]
+dim(fpml)
+```
+
+Only 59 columns are left after the above operations.  First 6 columns are then removed from datasets.
+
+```{r}
+fpml = fpml[,7:59]
+pml_test = pml_test[,7:59]
+
+```
+
+###Cross Validation###
+
+The training set is then separated into training and testing datasets.
+
+```{r}
+set.seed = 123
+inTrain= createDataPartition(y=fpml$classe,p=0.7,list=F)
+training = fpml[inTrain,]
+testing = fpml[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+###Train using Random Forest Model###
+
+```{r, eval=FALSE}
+modFit2 = train(classe ~., data=training,method="rf",preProcess="pca",prox=TRUE)
+```
+
+It took around 5 hours and the Random Forest Model  produce a pretty good accuracy rate 96% at mtry = 2. The model is then used to evaluate the testing dataset.
+
+```{r echo=FALSE}
+load("RandomForest2.RData")
+```
+
+
+```{r}
+modFit2
+pred2 = predict(modFit2,testing)
+table(pred2,testing$classe)
+sum(pred2==testing$classe)/length(pred2)
+```
+The out of sample error rate is quite consistant with the estimate at around 97%.
+
+###Final Result###
+
+Since the result of evaluation on testing data is quite impressive, the model is then used to predict the final 20 different cases from pml-testing.csv.
+
+```{r}
+fpred2 = predict(modFit2,pml_test)
+fpred2
+```
+
+The final results are correct 19 out of 20 cases.
+
